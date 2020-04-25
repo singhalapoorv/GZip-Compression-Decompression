@@ -49,28 +49,7 @@ namespace Rainier.Helper
             //Compress each DataTable into binary and add to content string
             foreach (DataTable table in chunkedTableList)
             {
-                byte[] binaryDataResult = null;
-                using (MemoryStream memStream = new MemoryStream())
-                {
-                    using (GZipStream gzip = new GZipStream(memStream,
-                    CompressionMode.Compress, true))
-                    {
-                        var formatter = new BinaryFormatter();
-                        table.RemotingFormat = SerializationFormat.Binary;
-                        formatter.Serialize(gzip, table);
-                    }
-                    binaryDataResult = memStream.ToArray();
-                }
-                using (MemoryStream memStream = new MemoryStream())
-                {
-                    using (GZipStream gzip = new GZipStream(memStream,
-                    CompressionMode.Compress, true))
-                    {
-                        gzip.Write(binaryDataResult, 0, binaryDataResult.Length);
-                    }
-                    binaryDataResult = memStream.ToArray();
- 
-                }
+                byte[] binaryDataResult = CommonCompression(table);
                 string chunkedContent = System.Convert.ToBase64String(binaryDataResult) + ';';
                 finalContentString += chunkedContent;
             }
@@ -87,7 +66,26 @@ namespace Rainier.Helper
             foreach (var tableString in splitDataTables)
             {
                 DataTable dt = new DataTable();
-                byte[] convertedString = System.Convert.FromBase64String(tableString);
+                dt=(DataTable)CommonDecompression(tableString);
+                tempDataSet.Merge(dt);
+            }
+            return tempDataSet.Tables[0];
+        }
+
+        public static string StringSizeCompression(string original)
+        {
+            byte[] binaryDataResult = CommonCompression(original);
+            return System.Convert.ToBase64String(binaryDataResult);
+        }
+
+        public static string StringSizeDecompression(string original)
+        {
+            return CommonDecompression(original).ToString();
+        }
+
+        private static dynamic CommonDecompression(string toDecompress)
+        {
+            byte[] convertedString = System.Convert.FromBase64String(toDecompress);
                 using (MemoryStream stream = new MemoryStream(convertedString))
                 {
                     using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
@@ -104,12 +102,37 @@ namespace Rainier.Helper
                     using (GZipStream gzip = new GZipStream(stream, CompressionMode.Decompress))
                     {
                         BinaryFormatter bformatter = new BinaryFormatter();
-                        dt = (DataTable)bformatter.Deserialize(gzip);
+                         return bformatter.Deserialize(gzip);
                     }
                 }
-                tempDataSet.Merge(dt);
-            }
-            return tempDataSet.Tables[0];
+        }
+        private static byte[] CommonCompression(dynamic toCompress)
+        {
+            byte[] binaryDataResult = null;
+             DataTable dt=new DataTable();
+                using (MemoryStream memStream = new MemoryStream())
+                {
+                    using (GZipStream gzip = new GZipStream(memStream,
+                    CompressionMode.Compress, true))
+                    {
+                        var formatter = new BinaryFormatter();
+                        if (toCompress.GetType().Equals(dt))
+                            toCompress.RemotingFormat = SerializationFormat.Binary;
+                        formatter.Serialize(gzip, toCompress);
+                    }
+                    binaryDataResult = memStream.ToArray();
+                }
+                using (MemoryStream memStream = new MemoryStream())
+                {
+                    using (GZipStream gzip = new GZipStream(memStream,
+                    CompressionMode.Compress, true))
+                    {
+                        gzip.Write(binaryDataResult, 0, binaryDataResult.Length);
+                    }
+                    binaryDataResult = memStream.ToArray();
+ 
+                }
+            return binaryDataResult;
         }
     }
 }
